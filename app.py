@@ -3,6 +3,7 @@ import os
 import logging
 import time
 import json
+import base64
 
 FORMAT='[%(levelname)s] (%(pathname)s %(asctime)s): %(message)s'
 logging.basicConfig(format=FORMAT)
@@ -58,22 +59,25 @@ def getPractices():
   """
   return json.dumps(list(db.practices.find({}, {"metrics":0})))
 
-@app.route('/practices/metrics')
+
+@app.route('/practices/derivedmetrics')
 @utils.cacheMemo(3600) # We cache the results for an hour.
+@JSON
+def getDerivedMetrics():
+  metrics = set([])
+  for practice in db.practices.find({"metrics":{"$exists":1}}):
+      metrics = metrics.union( set(practice["metrics"].keys()) )
+  
+  return json.dumps({"available_metrics": list(metrics)})
+
+@app.route('/practices/metrics')
 @JSON
 def getMetrics():
   """
   Returns all available metrics that can be queried using getMetric()
-
-  There's probably a clever way to do this on Mongo's side, but this works ok
   """
-  metrics = set([])
-  
-  for practice in db.practices.find():
-    metrics = metrics.union( set(practice["metrics"].keys()) )
-
-  return json.dumps({"available_metrics": list(metrics)})
-  
+  names = [metric["name"] for metric in list(db.metrics.find({"display":{"$exists":1}}))]
+  return json.dumps({"available_metrics": names})
 
 @app.route('/practices/metric/<metric>')
 @app.route('/practices/metric/<metric>/<limit>')
@@ -91,6 +95,24 @@ def getMetric(metric, limit=500):
     }
   ).limit(int(limit))))
 
+
+@app.route('/practices/compare/<metrica>/<metricb>')
+@app.route('/practices/compare/<metrica>/<metricb>/<limit>')
+@JSON
+def getCompare(metrica, metricb, limit=200):
+  metrica = base64.b64decode(metrica).decode('utf-8')
+  metricb = base64.b64decode(metricb).decode('utf-8')
+  log.info("recieved request for: ({}) vs ({})".format(metrica,metricb))
+  return json.dumps(list(db.practices.find(
+    {
+      "metrics.{}".format(metrica): {"$exists":1},
+      "metrics.{}".format(metricb): {"$exists":1},
+    }, 
+    {
+      "metrics.{}".format(metrica): 1,
+      "metrics.{}".format(metricb): 1,
+    }
+  ).limit(int(limit))))
 
 #
 # Routes
