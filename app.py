@@ -69,8 +69,16 @@ def getDerivedMetrics():
   metrics = set([])
   for practice in db.practices.find({"metrics":{"$exists":1}}):
       metrics = metrics.union( set(practice["metrics"].keys()) )
-  
   return json.dumps({"available_metrics": list(metrics)})
+
+# @app.route('/practices/CCGs')
+# @utils.cacheMemo(3600) # We cache the results for an hour.
+# @JSON
+# def getDerivedCCGs():
+#   CCGs = set([])
+#   for practice in db.practices.find({"CCG":{"$exists":1}}):
+#       CCGs = CCGs.union( set(practice["CCG"]))
+#   return json.dumps({"CCGs": list(CCGs)})
 
 @app.route('/practices/metrics')
 @JSON
@@ -117,11 +125,12 @@ def getComparestats(metrica, metricb, limit=200):
     {
       "metrics.{}".format(metrica): {"$exists":1},
       "metrics.{}".format(metricb): {"$exists":1},
+      "CCG":{"$exists":1}
     }, 
     {
       "metrics.{}".format(metrica): 1,
       "metrics.{}".format(metricb): 1,
-      "post": 1
+      "CCG": 1
     }
   ).limit(int(limit))))
   R,p =  pearsonCor(metrics)
@@ -140,11 +149,12 @@ def getCompare(metrica, metricb, limit=200):
     {
       "metrics.{}".format(metrica): {"$exists":1},
       "metrics.{}".format(metricb): {"$exists":1},
+      "CCG":{"$exists":1}
     }, 
     {
       "metrics.{}".format(metrica): 1,
       "metrics.{}".format(metricb): 1,
-      "post": 1
+      "CCG": 1
     }
   ).limit(int(limit))))
   return metrics
@@ -163,6 +173,7 @@ def getCompare(metrica, metricb,metricc, limit=200):
       "metrics.{}".format(metrica): {"$exists":1},
       "metrics.{}".format(metricb): {"$exists":1},
       "metrics.{}".format(metricc): {"$exists":1},
+      "CCG":{"$exists":1} 
     }, 
     {
       "metrics.{}".format(metrica): 1,
